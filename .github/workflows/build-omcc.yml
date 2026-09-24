@@ -1,0 +1,115 @@
+name: Build PonWrt OMCC Firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: SoC target to build
+        required: true
+        default: an7581
+        type: choice
+        options:
+          - an7581
+          - an7583
+      omcc_version:
+        description: OMCC compatibility profile
+        required: true
+        default: 0x86
+        type: choice
+        options:
+          - '0x86'
+          - '0xb0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-omcc-${{ inputs.target }}-${{ inputs.omcc_version }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ inputs.target }} OMCC ${{ inputs.omcc_version }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Free build space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt-get clean
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache clang cmake cpio curl device-tree-compiler flex gawk \
+            gettext git g++-multilib gcc-multilib gperf help2man intltool \
+            libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev \
+            libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev \
+            libtool libyaml-dev lld llvm ninja-build p7zip-full patch pkgconf \
+            python3 python3-docutils python3-pip python3-ply python3-pyelftools \
+            qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo \
+            uglifyjs unzip wget xmlto xxd zlib1g-dev zstd
+
+      - name: Cache downloads
+        uses: actions/cache@v4
+        with:
+          path: dl
+          key: ponwrt-omcc-dl-${{ inputs.target }}-${{ hashFiles('feeds.conf.default', 'configs/*.config') }}
+          restore-keys: |
+            ponwrt-omcc-dl-${{ inputs.target }}-
+
+      - name: Install feeds
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Set OMCC compatibility version
+        run: |
+          python3 scripts/set-omcc-version.py \
+            feeds/pon_userspace/airoha-ponctl/files/pon.config \
+            '${{ inputs.omcc_version }}'
+          grep -A4 "^config omci 'line0_omci'" \
+            feeds/pon_userspace/airoha-ponctl/files/pon.config
+
+      - name: Configure ${{ inputs.target }}
+        run: |
+          ./scripts/kconfig.pl + \
+            "configs/${{ inputs.target }}.config" \
+            configs/release.config > .config
+          make defconfig
+
+      - name: Download sources
+        run: make download -j"$(nproc)"
+
+      - name: Build firmware
+        run: make -j"$(nproc)"
+
+      - name: Package firmware
+        env:
+          TARGET: ${{ inputs.target }}
+          OMCC_VERSION: ${{ inputs.omcc_version }}
+        run: |
+          test -d "bin/targets/airoha/$TARGET"
+          mkdir -p release
+          printf 'target=%s\nomcc_version=%s\ncommit=%s\n' \
+            "$TARGET" "$OMCC_VERSION" "$GITHUB_SHA" > release/BUILD-INFO.txt
+          tar --zstd -cf "release/ponwrt-$TARGET-omcc-$OMCC_VERSION.tar.zst" \
+            -C bin/targets/airoha "$TARGET"
+          sha256sum "release/ponwrt-$TARGET-omcc-$OMCC_VERSION.tar.zst" \
+            > "release/ponwrt-$TARGET-omcc-$OMCC_VERSION.tar.zst.sha256"
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: ponwrt-${{ inputs.target }}-omcc-${{ inputs.omcc_version }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 14
