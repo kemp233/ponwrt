@@ -322,9 +322,14 @@
 
 	phy-handle = <&en8811>;
 	phy-mode = "2500base-x";
+	pcs-handle = <&eth_pcs>;
 
 	nvmem-cell-names = "mac-address";
 	nvmem-cells = <&macaddr_factory_3e (0)>;
+};
+
+&eth {
+	status = "okay";
 };
 
 &usb_phy {
