@@ -133,6 +133,21 @@ jobs:
           sha256sum "release/ponwrt-an7583-nokia_xg-040g-mf-ubi-omcc-${OMCC_VERSION}.tar.zst" \
             > "release/ponwrt-an7583-nokia_xg-040g-mf-ubi-omcc-${OMCC_VERSION}.tar.zst.sha256"
 
+      - name: Collect offline packages
+        run: |
+          # LuCI + uhttpd ucode plugin as .apk, so the web UI can be
+          # installed on an already-flashed box without reflashing.
+          mkdir -p release/packages
+          find bin/packages -type f \( -name 'luci*.apk' \
+            -o -name 'rpcd*.apk' \
+            -o -name 'uhttpd*.apk' \
+            -o -name 'ucode*.apk' \
+            -o -name 'libucode*.apk' \
+            -o -name 'liblucihttp*.apk' \) \
+            -exec cp -a {} release/packages/ \;
+          ls -1 release/packages | head -20
+          echo "total: $(ls -1 release/packages | wc -l) packages"
+
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
