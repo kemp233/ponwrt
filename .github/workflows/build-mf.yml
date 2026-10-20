@@ -67,6 +67,12 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
+      - name: Remove failing miniupnpd patch
+        run: |
+          # upstream miniupnpd 2.3.11 already has the permission parser rewrite
+          # patch 020-descr-filter-fix.patch conflicts and fails to apply
+          rm -f feeds/packages/net/miniupnpd/patches/020-descr-filter-fix.patch
+
       - name: Configure an7583 (XG-040G-MF UBI)
         run: |
           ./scripts/kconfig.pl + \
