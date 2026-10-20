@@ -100,7 +100,19 @@ jobs:
         run: make download -j"$(nproc)"
 
       - name: Build firmware
-        run: make -j"$(nproc)"
+        run: |
+          set +e
+          make -j"$(nproc)"
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::group::Verbose rebuild of the failed package"
+            make -j1 V=s package/feeds/packages/miniupnpd/compile \
+              || make -j1 V=sc package/feeds/packages/miniupnpd/compile \
+              || true
+            echo "::endgroup::"
+            exit "$rc"
+          fi
 
       - name: Package firmware
         env:
