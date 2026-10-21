@@ -15,6 +15,14 @@ on:
           - '0x86'
           - '0xb0'
         required: true
+      disable_pon:
+        description: Disable the PON (test build: check PON vs 2.5G SerDes conflict)
+        type: boolean
+        default: false
+      en8811h_reset_us:
+        description: EN8811H reset-assert time in us (10000=upstream, 1000000=an7583 EVB)
+        type: string
+        default: '10000'
 
 permissions:
   contents: read
@@ -101,6 +109,38 @@ jobs:
             -e 's/^CONFIG_PACKAGE_kmod-fs-exfat=.*/CONFIG_PACKAGE_kmod-fs-exfat=y/' \
             -e 's/^CONFIG_PACKAGE_block-mount=.*/CONFIG_PACKAGE_block-mount=y/' \
             .config
+
+      - name: Set EN8811H PHY reset timing
+        run: |
+          # The AN7583 EVB reference holds the EN8811H in reset for 1s and waits
+          # 100ms before probing. Upstream ponwrt uses 10ms/20ms. Make it
+          # selectable so the timing can be A/B tested on real hardware.
+          DTS=target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi
+          sed -i -E "s|reset-assert-us = <[0-9]+>;|reset-assert-us = <${{ inputs.en8811h_reset_us }}>;|" "$DTS"
+          grep -A3 "reset-gpios" "$DTS" | head -5
+
+      - name: Disable PON (SerDes conflict test)
+        if: inputs.disable_pon
+        run: |
+          # The PON (GDM2 + xpon_mac + pon_pcs) and the 2.5G copper port
+          # (GDM3 + eth_pcs) share the AN7583 SerDes/SCU XSI routing.
+          # Disable the PON to A/B test whether it breaks the 2.5G link.
+          cat >> target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi <<'EOF'
+
+          &xpon_mac {
+          	status = "disabled";
+          };
+
+          &pon_pcs {
+          	status = "disabled";
+          };
+
+          &gdm2 {
+          	status = "disabled";
+          };
+          EOF
+          echo "--- PON disabled ---"
+          tail -20 target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi
 
       - name: Download sources
         run: make download -j"$(nproc)"
