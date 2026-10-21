@@ -97,7 +97,9 @@ jobs:
         run: make download -j"$(nproc)"
 
       - name: Prepare kernel config
-        run: make target/linux/compile -j"$(nproc)"
+        run: |
+          make kernel_oldconfig
+          make target/linux/{clean,compile} -j"$(nproc)" V=s
 
       - name: Build firmware
         run: |
