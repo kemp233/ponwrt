@@ -210,6 +210,14 @@
 		nvmem-cells = <&pon_calibration>;
 		nvmem-cell-names = "calibration";
 	};
+
+	sfp_cage1: sfp-cage@51 {
+		compatible = "sfp-cage";
+		reg = <0x51>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
 };
 
 &snfi {
@@ -331,6 +339,7 @@
 	 * external PCS SerDes configuration, and the link never comes up.
 	 */
 	phy-handle = <&en8811>;
+	pcs-handle = <&eth_pcs>;
 	phy-mode = "2500base-x";
 
 	nvmem-cell-names = "mac-address";
