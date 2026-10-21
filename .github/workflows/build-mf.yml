@@ -23,6 +23,10 @@ on:
         description: "EN8811H reset-assert time in us - 10000 is upstream, 1000000 is the an7583 EVB"
         type: string
         default: '10000'
+      enable_gsw_port1:
+        description: "Bring up the 4th switch copper port (gsw_port1) as lan5"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -109,6 +113,34 @@ jobs:
             -e 's/^CONFIG_PACKAGE_kmod-fs-exfat=.*/CONFIG_PACKAGE_kmod-fs-exfat=y/' \
             -e 's/^CONFIG_PACKAGE_block-mount=.*/CONFIG_PACKAGE_block-mount=y/' \
             .config
+
+      - name: Enable GSW port 1 (4th switch copper port)
+        if: inputs.enable_gsw_port1
+        run: |
+          # The AN7583 switch has 4 copper ports (port@1..port@4) plus the
+          # CPU port at port@6. The board DTS only enables port@2..port@4,
+          # so port@1 stays dark. Bring it up as lan5 so every physical
+          # copper jack can be identified on real hardware.
+          cat >> target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi <<'EOF'
+
+          &gsw_port1 {
+          	status = "okay";
+
+          	label = "lan5";
+          };
+
+          &gsw_phy1 {
+          	status = "okay";
+
+          	interrupts = <1>;
+
+          	pinctrl-names = "gbe-led";
+          	pinctrl-0 = <&gswp1_led0_pins>;
+          };
+          EOF
+          sed -i 's/ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "pon0"/ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4 lan5" "pon0"/' \
+            target/linux/airoha/an7583/base-files/etc/board.d/02_network
+          grep -n "ucidef_set_interfaces_lan_wan" target/linux/airoha/an7583/base-files/etc/board.d/02_network
 
       - name: Set EN8811H PHY reset timing
         run: |
