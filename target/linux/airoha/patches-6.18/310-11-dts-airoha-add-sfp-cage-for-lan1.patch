@@ -11,13 +11,13 @@ as required by the phylink support patches.
 
 Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 ---
- target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi | 17 ++++++++++++++++-
+ arch/arm64/boot/dts/airoha/an7583-nokia_xg-040g-mf-common.dtsi | 17 ++++++++++++++++-
  1 file changed, 16 insertions(+), 1 deletion(-)
 
-diff --git a/target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi b/target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi
+diff --git a/arch/arm64/boot/dts/airoha/an7583-nokia_xg-040g-mf-common.dtsi b/arch/arm64/boot/dts/airoha/an7583-nokia_xg-040g-mf-common.dtsi
 index xxxxxxx..xxxxxxx 100644
---- a/target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi
-+++ b/target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi
+--- a/arch/arm64/boot/dts/airoha/an7583-nokia_xg-040g-mf-common.dtsi
++++ b/arch/arm64/boot/dts/airoha/an7583-nokia_xg-040g-mf-common.dtsi
 @@ -207,7 +207,17 @@
  		tx-disable-gpios = <&an7583_pinctrl 15 GPIO_ACTIVE_HIGH>;
  
