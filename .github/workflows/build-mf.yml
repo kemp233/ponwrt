@@ -2,35 +2,6 @@ name: Build XG-040G-MF Firmware
 
 on:
   workflow_dispatch:
-    inputs:
-      usb_storage:
-        description: Include USB storage packages (2.5G port)
-        type: boolean
-        default: true
-      omcc_version:
-        description: OMCC compatibility profile
-        type: choice
-        default: '0x86'
-        options:
-          - '0x86'
-          - '0xb0'
-        required: true
-      disable_pon:
-        description: "Disable the PON - test build to check the PON vs 2.5G SerDes conflict"
-        type: boolean
-        default: false
-      en8811h_reset_us:
-        description: "EN8811H reset-assert time in us - 10000 is upstream, 1000000 is the an7583 EVB"
-        type: string
-        default: '10000'
-      enable_gsw_port1:
-        description: "Bring up the 4th switch copper port (gsw_port1) as lan5"
-        type: boolean
-        default: false
-      legacy_pcs:
-        description: "Restore the pre-Sep-23 airoha PCS and phylink driver patches (bisect aid)"
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -85,8 +56,6 @@ jobs:
 
       - name: Remove failing miniupnpd patch
         run: |
-          # upstream miniupnpd 2.3.11 already has the permission parser rewrite
-          # patch 020-descr-filter-fix.patch conflicts and fails to apply
           rm -f feeds/packages/net/miniupnpd/patches/020-descr-filter-fix.patch
 
       - name: Configure an7583 (XG-040G-MF UBI)
@@ -97,16 +66,15 @@ jobs:
             config/sfp-phylink.config > .config
           make defconfig
 
-      - name: Set OMCC compatibility version
+      - name: Set OMCC version
         run: |
           python3 scripts/set-omcc-version.py \
             feeds/pon_userspace/airoha-ponctl/files/pon.config \
-            '${{ inputs.omcc_version }}'
+            '0x86'
           grep -A4 "^config omci 'line0_omci'" \
             feeds/pon_userspace/airoha-ponctl/files/pon.config
 
-      - name: Enable USB storage for 2.5G port
-        if: inputs.usb_storage
+      - name: Enable USB storage
         run: |
           sed -i \
             -e 's/^CONFIG_PACKAGE_kmod-usb-xhci-hcd=.*/CONFIG_PACKAGE_kmod-usb-xhci-hcd=y/' \
@@ -119,77 +87,11 @@ jobs:
             -e 's/^CONFIG_PACKAGE_block-mount=.*/CONFIG_PACKAGE_block-mount=y/' \
             .config
 
-      - name: Enable GSW port 1 (4th switch copper port)
-        if: inputs.enable_gsw_port1
-        run: |
-          # The AN7583 switch has 4 copper ports (port@1..port@4) plus the
-          # CPU port at port@6. The board DTS only enables port@2..port@4,
-          # so port@1 stays dark. Bring it up as lan5 so every physical
-          # copper jack can be identified on real hardware.
-          cat >> target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi <<'EOF'
-
-          &gsw_port1 {
-          	status = "okay";
-
-          	label = "lan5";
-          };
-
-          &gsw_phy1 {
-          	status = "okay";
-
-          	interrupts = <1>;
-
-          	pinctrl-names = "gbe-led";
-          	pinctrl-0 = <&gswp1_led0_pins>;
-          };
-          EOF
-          sed -i 's/ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "pon0"/ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4 lan5" "pon0"/' \
-            target/linux/airoha/an7583/base-files/etc/board.d/02_network
-          grep -n "ucidef_set_interfaces_lan_wan" target/linux/airoha/an7583/base-files/etc/board.d/02_network
-
-      - name: Restore legacy airoha PCS / phylink patches
-        if: inputs.legacy_pcs
-        run: |
-          # The MF 2.5G port worked on 2026-08-08 (commit f65530c1ca) and
-          # stopped working after the 2026-09-23 PCS/phylink driver rewrite
-          # (commit 5026b8e039). Restore the previous driver revisions to
-          # bisect the regression.
-          git checkout 5026b8e039^ -- \
-            target/linux/airoha/patches-6.18/310-09-net-pcs-airoha-add-PCS-driver-for-Airoha-AN7581-SoC.patch \
-            target/linux/airoha/patches-6.18/310-10-net-airoha-add-phylink-support.patch
-          git status --short target/linux/airoha/patches-6.18/
-
       - name: Set EN8811H PHY reset timing
         run: |
-          # The AN7583 EVB reference holds the EN8811H in reset for 1s and waits
-          # 100ms before probing. Upstream ponwrt uses 10ms/20ms. Make it
-          # selectable so the timing can be A/B tested on real hardware.
           DTS=target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi
-          sed -i -E "s|reset-assert-us = <[0-9]+>;|reset-assert-us = <${{ inputs.en8811h_reset_us }}>;|" "$DTS"
+          sed -i -E "s|reset-assert-us = <[0-9]+>;|reset-assert-us = <10000>;|" "$DTS"
           grep -A3 "reset-gpios" "$DTS" | head -5
-
-      - name: Disable PON (SerDes conflict test)
-        if: inputs.disable_pon
-        run: |
-          # The PON (GDM2 + xpon_mac + pon_pcs) and the 2.5G copper port
-          # (GDM3 + eth_pcs) share the AN7583 SerDes/SCU XSI routing.
-          # Disable the PON to A/B test whether it breaks the 2.5G link.
-          cat >> target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi <<'EOF'
-
-          &xpon_mac {
-          	status = "disabled";
-          };
-
-          &pon_pcs {
-          	status = "disabled";
-          };
-
-          &gdm2 {
-          	status = "disabled";
-          };
-          EOF
-          echo "--- PON disabled ---"
-          tail -20 target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi
 
       - name: Download sources
         run: make download -j"$(nproc)"
@@ -210,22 +112,18 @@ jobs:
           fi
 
       - name: Package firmware
-        env:
-          OMCC_VERSION: ${{ inputs.omcc_version }}
         run: |
           test -d "bin/targets/airoha/an7583"
           mkdir -p release
-          printf 'target=airoha/an7583\ndevice=nokia_xg-040g-mf-ubi\nomcc_version=%s\ncommit=%s\n' \
-            "$OMCC_VERSION" "$GITHUB_SHA" > release/BUILD-INFO.txt
-          tar --zstd -cf "release/ponwrt-an7583-nokia_xg-040g-mf-ubi-omcc-${OMCC_VERSION}.tar.zst" \
+          printf 'target=airoha/an7583\ndevice=nokia_xg-040g-mf-ubi\nomcc_version=0x86\ncommit=%s\n' \
+            "$GITHUB_SHA" > release/BUILD-INFO.txt
+          tar --zstd -cf "release/ponwrt-an7583-nokia_xg-040g-mf-ubi-omcc-0x86.tar.zst" \
             -C bin/targets/airoha an7583
-          sha256sum "release/ponwrt-an7583-nokia_xg-040g-mf-ubi-omcc-${OMCC_VERSION}.tar.zst" \
-            > "release/ponwrt-an7583-nokia_xg-040g-mf-ubi-omcc-${OMCC_VERSION}.tar.zst.sha256"
+          sha256sum "release/ponwrt-an7583-nokia_xg-040g-mf-ubi-omcc-0x86.tar.zst" \
+            > "release/ponwrt-an7583-nokia_xg-040g-mf-ubi-omcc-0x86.tar.zst.sha256"
 
       - name: Collect offline packages
         run: |
-          # LuCI + uhttpd ucode plugin as .apk, so the web UI can be
-          # installed on an already-flashed box without reflashing.
           mkdir -p release/packages
           find bin/packages -type f \( -name 'luci*.apk' \
             -o -name 'rpcd*.apk' \
