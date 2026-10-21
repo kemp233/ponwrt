@@ -27,6 +27,10 @@ on:
         description: "Bring up the 4th switch copper port (gsw_port1) as lan5"
         type: boolean
         default: false
+      legacy_pcs:
+        description: "Restore the pre-Sep-23 airoha PCS and phylink driver patches (bisect aid)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -141,6 +145,18 @@ jobs:
           sed -i 's/ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "pon0"/ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4 lan5" "pon0"/' \
             target/linux/airoha/an7583/base-files/etc/board.d/02_network
           grep -n "ucidef_set_interfaces_lan_wan" target/linux/airoha/an7583/base-files/etc/board.d/02_network
+
+      - name: Restore legacy airoha PCS / phylink patches
+        if: inputs.legacy_pcs
+        run: |
+          # The MF 2.5G port worked on 2026-08-08 (commit f65530c1ca) and
+          # stopped working after the 2026-09-23 PCS/phylink driver rewrite
+          # (commit 5026b8e039). Restore the previous driver revisions to
+          # bisect the regression.
+          git checkout 5026b8e039^ -- \
+            target/linux/airoha/patches-6.18/310-09-net-pcs-airoha-add-PCS-driver-for-Airoha-AN7581-SoC.patch \
+            target/linux/airoha/patches-6.18/310-10-net-airoha-add-phylink-support.patch
+          git status --short target/linux/airoha/patches-6.18/
 
       - name: Set EN8811H PHY reset timing
         run: |
