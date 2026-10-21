@@ -99,7 +99,7 @@ jobs:
       - name: Prepare kernel config
         run: |
           make kernel_oldconfig
-          make target/linux/{clean,compile} -j"$(nproc)" V=s
+          make target/linux/prepare -j"$(nproc)"
 
       - name: Build firmware
         run: |
