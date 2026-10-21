@@ -224,8 +224,11 @@
 		reg = <0xf>;
 
 		reset-gpios = <&an7583_pinctrl 34 GPIO_ACTIVE_LOW>;
-		reset-assert-us = <10000>;
-		reset-deassert-us = <20000>;
+		/* Same timing as the upstream an7583 EVB reference: hold reset for
+		 * 1s and wait 100 ms so the EN8811H MD32 firmware is fully loaded
+		 * before the PHY is probed. */
+		reset-assert-us = <1000000>;
+		reset-deassert-us = <100000>;
 
 		leds {
 			#address-cells = <1>;
