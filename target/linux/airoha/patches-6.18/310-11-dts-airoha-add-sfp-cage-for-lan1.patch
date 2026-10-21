@@ -18,23 +18,25 @@ diff --git a/target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi b/targe
 index xxxxxxx..xxxxxxx 100644
 --- a/target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi
 +++ b/target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi
-@@ -213,6 +213,21 @@
- 	};
- };
+@@ -207,7 +207,17 @@
+ 		tx-disable-gpios = <&an7583_pinctrl 15 GPIO_ACTIVE_HIGH>;
  
-+&i2c0 {
+ 		/* The 512 bytes after the bosa header contain per-device optical data. */
+ 		nvmem-cells = <&pon_calibration>;
+ 		nvmem-cell-names = "calibration";
+ 	};
+ 
 +	sfp_cage1: sfp-cage@51 {
 +		compatible = "sfp-cage";
 +		reg = <0x51>;
 +		#address-cells = <1>;
 +		#size-cells = <0>;
 +	};
-+};
 +
+ };
+ 
  &snfi {
- 	pinctrl-names = "default";
- 	pinctrl-0 = <&spi_pins>;
-@@ -330,7 +345,8 @@
+@@ -330,7 +340,8 @@
  	 * external airoha PCS (1fa09000) instead switches the port to the
  	 * external PCS SerDes configuration, and the link never comes up.
  	 */
