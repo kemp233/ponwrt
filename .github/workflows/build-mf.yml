@@ -65,6 +65,8 @@ jobs:
             "configs/release.config" \
             "config/sfp-phylink.config" > .config
           make defconfig
+          # Verify SFP/PHYLINK options are in .config
+          grep -E "CONFIG_PHYLINK|CONFIG_SFP" .config
 
       - name: Set OMCC version
         run: |
@@ -98,8 +100,12 @@ jobs:
 
       - name: Prepare kernel config
         run: |
+          # The kconfig.pl + + merge already includes SFP/PHYLINK options from sfp-phylink.config
+          # Just run kernel_oldconfig to propagate to kernel .config
           make kernel_oldconfig
           make target/linux/prepare -j"$(nproc)"
+          # Verify kernel config has the options
+          grep -E "CONFIG_PHYLINK|CONFIG_SFP" build_dir/target-*/linux-*/linux-*/.config 2>/dev/null || grep -E "CONFIG_PHYLINK|CONFIG_SFP" .config
 
       - name: Build firmware
         run: |
