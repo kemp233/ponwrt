@@ -16,11 +16,11 @@ on:
           - '0xb0'
         required: true
       disable_pon:
-        description: Disable the PON (test build: check PON vs 2.5G SerDes conflict)
+        description: "Disable the PON - test build to check the PON vs 2.5G SerDes conflict"
         type: boolean
         default: false
       en8811h_reset_us:
-        description: EN8811H reset-assert time in us (10000=upstream, 1000000=an7583 EVB)
+        description: "EN8811H reset-assert time in us - 10000 is upstream, 1000000 is the an7583 EVB"
         type: string
         default: '10000'
 
