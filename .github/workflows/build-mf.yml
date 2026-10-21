@@ -54,6 +54,15 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
+      - name: Disable problematic video feed packages
+        run: |
+          # Disable video feed packages with Kconfig recursive dependency issues
+          ./scripts/feeds uninstall -a -p video 2>/dev/null || true
+          # Also disable telephony feed which pulls in many packages
+          ./scripts/feeds uninstall -a -p telephony 2>/dev/null || true
+          # Re-generate package configs
+          make defconfig
+
       - name: Remove failing miniupnpd patch
         run: |
           rm -f feeds/packages/net/miniupnpd/patches/020-descr-filter-fix.patch
