@@ -74,7 +74,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: dl
-          key: ponwrt-mf-dl-${{ hashFiles('configs/an7583.config', 'configs/release.config') }}
+          key: ponwrt-mf-dl-${{ hashFiles('configs/an7583.config', 'configs/release.config', 'config/sfp-phylink.config') }}
           restore-keys: |
             ponwrt-mf-dl-
 
@@ -93,7 +93,8 @@ jobs:
         run: |
           ./scripts/kconfig.pl + \
             "configs/an7583.config" \
-            configs/release.config > .config
+            configs/release.config \
+            config/sfp-phylink.config > .config
           make defconfig
 
       - name: Set OMCC compatibility version
