@@ -45,7 +45,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: dl
-          key: ponwrt-mf-dl-${{ hashFiles('configs/an7583.config', 'configs/release.config', 'config/sfp-phylink.config') }}
+          key: ponwrt-mf-dl-${{ hashFiles('configs/an7583.config', 'configs/release.config', 'target/linux/airoha/an7583/config-6.18') }}
           restore-keys: |
             ponwrt-mf-dl-
 
@@ -71,11 +71,13 @@ jobs:
         run: |
           ./scripts/kconfig.pl + + \
             "configs/an7583.config" \
-            "configs/release.config" \
-            "config/sfp-phylink.config" > .config
+            "configs/release.config" > .config
           make defconfig
-          # Verify SFP/PHYLINK options are in .config
-          grep -E "CONFIG_PHYLINK|CONFIG_SFP" .config
+          # The kernel configuration is *not* taken from .config; it comes
+          # from target/linux/airoha/{config,an7583/config}-6.18.  Verify
+          # the SFP/PHYLINK options are present there.
+          grep -E "CONFIG_PHYLINK|CONFIG_SFP|CONFIG_PCS_AIROHA" \
+            target/linux/airoha/an7583/config-6.18
 
       - name: Set OMCC version
         run: |
@@ -109,12 +111,11 @@ jobs:
 
       - name: Prepare kernel config
         run: |
-          # The kconfig.pl + + merge already includes SFP/PHYLINK options from sfp-phylink.config
-          # Just run kernel_oldconfig to propagate to kernel .config
           make kernel_oldconfig
           make target/linux/prepare -j"$(nproc)"
-          # Verify kernel config has the options
-          grep -E "CONFIG_PHYLINK|CONFIG_SFP" build_dir/target-*/linux-*/linux-*/.config 2>/dev/null || grep -E "CONFIG_PHYLINK|CONFIG_SFP" .config
+          # Verify the generated kernel config really carries the options
+          grep -E "CONFIG_PHYLINK=|CONFIG_SFP=|CONFIG_PCS_AIROHA=" \
+            build_dir/target-*/linux-*/linux-*/.config
 
       - name: Build firmware
         run: |

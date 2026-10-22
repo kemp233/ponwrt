@@ -103,6 +103,21 @@
 		compatible = "regulator-output";
 		vout-supply = <&reg_usb_5v>;
 	};
+
+	/*
+	 * 2.5G SFP cage on the MF.
+	 *
+	 * The Linux 6.18 SFP driver models a cage as a platform device that
+	 * owns the EEPROM on the SFP two-wire bus; it is not an I2C client
+	 * with its own "reg" address.  The cage therefore only references
+	 * the bus it is wired to and phylink picks it up through the "sfp"
+	 * property of the MAC port node.
+	 */
+	sfp1: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c0>;
+		maximum-power-milliwatt = <1500>;
+	};
 };
 
 &an7583_pinctrl {
@@ -210,14 +225,6 @@
 		nvmem-cells = <&pon_calibration>;
 		nvmem-cell-names = "calibration";
 	};
-
-	sfp_cage1: sfp-cage@51 {
-		compatible = "sfp-cage";
-		reg = <0x51>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-	};
-
 };
 
 &snfi {
@@ -331,16 +338,17 @@
 	openwrt,netdev-name = "lan1";
 
 	/*
-	 * No pcs-handle here on purpose. The an7583 EVB reference design
-	 * and the Nokia XG-040G-MD both leave the 2.5G copper port on the
-	 * MAC internal PCS path, and that is what the EN8811H expects:
-	 * the airoha MAC driver programs the SerDes itself. Attaching the
-	 * external airoha PCS (1fa09000) instead switches the port to the
-	 * external PCS SerDes configuration, and the link never comes up.
+	 * The MF exposes its 2.5G port as an SFP cage that is wired
+	 * straight to the GDM3 SerDes, so the port is served by the external
+	 * airoha PCS (eth_pcs) running 2500BASE-X.  The EN8811H on the MDIO
+	 * bus is a copper PHY and is not the media for this port, therefore
+	 * lan1 references the SFP cage through the "sfp" property and phylink
+	 * takes the link state from the PCS and the module capabilities from
+	 * the SFP subsystem.
 	 */
-	phy-handle = <&en8811>;
 	pcs-handle = <&eth_pcs>;
 	phy-mode = "2500base-x";
+	sfp = <&sfp1>;
 
 	nvmem-cell-names = "mac-address";
 	nvmem-cells = <&macaddr_factory_3e (0)>;
