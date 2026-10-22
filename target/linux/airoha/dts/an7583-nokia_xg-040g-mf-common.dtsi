@@ -239,10 +239,14 @@
 		reg = <0xf>;
 
 		reset-gpios = <&an7583_pinctrl 34 GPIO_ACTIVE_LOW>;
-		/* The CI workflow can override this to the an7583 EVB timing
-		 * (1s assert / 100ms settle) for A/B testing on real hardware. */
-		reset-assert-us = <10000>;
-		reset-deassert-us = <20000>;
+		/*
+		 * Vendor timing from the original Nokia firmware: hold the
+		 * EN8811H in reset for 1s and give it 100ms to settle before
+		 * the MD32 firmware is loaded.  A short reset makes the PHY
+		 * come up without a valid MD32 image.
+		 */
+		reset-assert-us = <1000000>;
+		reset-deassert-us = <100000>;
 
 		leds {
 			#address-cells = <1>;

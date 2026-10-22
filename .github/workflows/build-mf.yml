@@ -102,8 +102,11 @@ jobs:
 
       - name: Set EN8811H PHY reset timing
         run: |
+          # Keep the vendor timing (1s assert / 100ms settle) that the
+          # original Nokia firmware uses for the EN8811H.
           DTS=target/linux/airoha/dts/an7583-nokia_xg-040g-mf-common.dtsi
-          sed -i -E "s|reset-assert-us = <[0-9]+>;|reset-assert-us = <10000>;|" "$DTS"
+          sed -i -E "s|reset-assert-us = <[0-9]+>;|reset-assert-us = <1000000>;|" "$DTS"
+          sed -i -E "s|reset-deassert-us = <[0-9]+>;|reset-deassert-us = <100000>;|" "$DTS"
           grep -A3 "reset-gpios" "$DTS" | head -5
 
       - name: Download sources
