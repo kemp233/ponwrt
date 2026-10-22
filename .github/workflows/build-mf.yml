@@ -69,7 +69,7 @@ jobs:
 
       - name: Configure an7583 (XG-040G-MF UBI)
         run: |
-          ./scripts/kconfig.pl + + \
+          ./scripts/kconfig.pl + \
             "configs/an7583.config" \
             "configs/release.config" > .config
           make defconfig
