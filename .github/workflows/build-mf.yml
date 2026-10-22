@@ -54,14 +54,27 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Disable problematic video feed packages
+      - name: Fix recursive Kconfig dependencies in feeds
         run: |
-          # Disable video feed packages with Kconfig recursive dependency issues
-          ./scripts/feeds uninstall -a -p video 2>/dev/null || true
-          # Also disable telephony feed which pulls in many packages
-          ./scripts/feeds uninstall -a -p telephony 2>/dev/null || true
-          # Re-generate package configs
-          make defconfig
+          # Upstream feeds currently ship two Kconfig cycles that make
+          # "make defconfig" abort:
+          #   qt5base-gui -> BUILD_qt5base-gui_OPENGL_OPENGLES2 (inside a choice)
+          #   squeezelite-custom <-> SQUEEZELITE_WMA_ALAC
+          # Break both cycles instead of dropping the feeds, because the
+          # PON packages live in the pon_userspace/pon_drivers feeds.
+          QT5=package/feeds/video/frameworks/qt5/qt5base/Makefile
+          if [ -f "$QT5" ]; then
+            sed -i 's/+BUILD_qt5base-gui_OPENGL_OPENGLES2:libmesa//g' "$QT5"
+          fi
+          SQZ=package/feeds/packages/net/squeezelite
+          if [ -f "$SQZ/Makefile" ]; then
+            sed -i 's/+SQUEEZELITE_WMA_ALAC//g' "$SQZ/Makefile"
+          fi
+          if [ -f "$SQZ/Config.in" ]; then
+            sed -i '/^config SQUEEZELITE_WMA_ALAC/,/^config /{
+              s/depends on PACKAGE_squeezelite-custom/# depends on PACKAGE_squeezelite-custom/
+            }' "$SQZ/Config.in"
+          fi
 
       - name: Remove failing miniupnpd patch
         run: |
