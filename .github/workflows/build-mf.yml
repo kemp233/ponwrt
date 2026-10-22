@@ -127,10 +127,11 @@ jobs:
           rc=$?
           set -e
           if [ "$rc" -ne 0 ]; then
-            echo "::group::Verbose rebuild of the failed package"
-            make -j1 V=s package/feeds/packages/miniupnpd/compile \
-              || make -j1 V=sc package/feeds/packages/miniupnpd/compile \
-              || true
+            echo "::group::Verbose rebuild of the failed target (target/linux/install)"
+            make -j1 V=s target/linux/install 2>&1 | tail -150
+            echo "::endgroup::"
+            echo "::group::Verbose rebuild of the whole build (last 150 lines)"
+            make -j1 V=s 2>&1 | tail -150
             echo "::endgroup::"
             exit "$rc"
           fi
