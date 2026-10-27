@@ -101,8 +101,18 @@ jobs:
           mkdir -p release
           printf 'target=%s\nomcc_version=%s\ncommit=%s\n' \
             "$TARGET" "$OMCC_VERSION" "$GITHUB_SHA" > release/BUILD-INFO.txt
+          # The feed tier (bin/packages/<arch>/{luci,packages,base}) is where
+          # luci-app-openclash, p910nd, avahi and their dependencies land;
+          # bin/targets/airoha/$TARGET only carries the kernel, the kmods and
+          # base-files. Packaging just the target tier kept those apks
+          # invisible in the artifact even when they were built and installed -
+          # run 40441206498 listed them in the image manifest but the artifact
+          # held no such file. The second -C must be absolute: a relative -C
+          # resolves against the directory the previous -C selected.
+          test -d "$GITHUB_WORKSPACE/bin/packages"
           tar --zstd -cf "release/ponwrt-$TARGET-omcc-$OMCC_VERSION.tar.zst" \
-            -C bin/targets/airoha "$TARGET"
+            -C bin/targets/airoha "$TARGET" \
+            -C "$GITHUB_WORKSPACE/bin" packages
           sha256sum "release/ponwrt-$TARGET-omcc-$OMCC_VERSION.tar.zst" \
             > "release/ponwrt-$TARGET-omcc-$OMCC_VERSION.tar.zst.sha256"
 

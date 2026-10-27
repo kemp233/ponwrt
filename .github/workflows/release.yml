@@ -96,8 +96,17 @@ jobs:
       - name: Pack ${{ matrix.target }}
         run: |
           mkdir release
+          # The second -C must be absolute: a relative -C resolves against the
+          # directory the previous -C selected. bin/packages/<arch> is the feed
+          # tier holding the packages added through configs/release.config
+          # (luci-app-openclash, p910nd, avahi, ruby); the target tier only
+          # carries the kernel, the kmods and base-files. Both matrix targets
+          # are aarch64_cortex-a53, so this one path is right for either job -
+          # each job builds on its own runner and packs its own feed tier.
+          test -d "$GITHUB_WORKSPACE/bin/packages"
           tar --zstd -cf "release/ponwrt-${{ matrix.target }}.tar.zst" \
-            -C bin/targets/airoha "${{ matrix.target }}"
+            -C bin/targets/airoha "${{ matrix.target }}" \
+            -C "$GITHUB_WORKSPACE/bin" packages
 
       - name: Upload ${{ matrix.target }}
         uses: actions/upload-artifact@v4

@@ -155,8 +155,16 @@ jobs:
           mkdir -p release
           printf 'target=airoha/an7583\ndevice=nokia_xg-040g-mf-ubi\nomcc_version=0x86\ncommit=%s\n' \
             "$GITHUB_SHA" > release/BUILD-INFO.txt
+          # The second -C must be absolute: a relative -C resolves against the
+          # directory the previous -C selected, so "bin/packages" would be
+          # looked up under bin/targets/airoha. bin/packages/<arch> is the feed
+          # tier, where the packages added through configs/release.config land
+          # (luci-app-openclash, p910nd, avahi, ruby); the target tier only
+          # carries the kernel, the kmods and base-files.
+          test -d "$GITHUB_WORKSPACE/bin/packages"
           tar --zstd -cf "release/ponwrt-an7583-nokia_xg-040g-mf-ubi-omcc-0x86.tar.zst" \
-            -C bin/targets/airoha an7583
+            -C bin/targets/airoha an7583 \
+            -C "$GITHUB_WORKSPACE/bin" packages
           sha256sum "release/ponwrt-an7583-nokia_xg-040g-mf-ubi-omcc-0x86.tar.zst" \
             > "release/ponwrt-an7583-nokia_xg-040g-mf-ubi-omcc-0x86.tar.zst.sha256"
 
