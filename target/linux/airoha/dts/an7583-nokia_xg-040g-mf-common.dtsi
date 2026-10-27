@@ -104,20 +104,6 @@
 		vout-supply = <&reg_usb_5v>;
 	};
 
-	/*
-	 * 2.5G SFP cage on the MF.
-	 *
-	 * The Linux 6.18 SFP driver models a cage as a platform device that
-	 * owns the EEPROM on the SFP two-wire bus; it is not an I2C client
-	 * with its own "reg" address.  The cage therefore only references
-	 * the bus it is wired to and phylink picks it up through the "sfp"
-	 * property of the MAC port node.
-	 */
-	sfp1: sfp {
-		compatible = "sff,sfp";
-		i2c-bus = <&i2c0>;
-		maximum-power-milliwatt = <1500>;
-	};
 };
 
 &an7583_pinctrl {
@@ -341,18 +327,10 @@
 
 	openwrt,netdev-name = "lan1";
 
-	/*
-	 * The MF exposes its 2.5G port as an SFP cage that is wired
-	 * straight to the GDM3 SerDes, so the port is served by the external
-	 * airoha PCS (eth_pcs) running 2500BASE-X.  The EN8811H on the MDIO
-	 * bus is a copper PHY and is not the media for this port, therefore
-	 * lan1 references the SFP cage through the "sfp" property and phylink
-	 * takes the link state from the PCS and the module capabilities from
-	 * the SFP subsystem.
-	 */
-	pcs-handle = <&eth_pcs>;
+	/* The MF 2.5G port is a plain copper RJ45 driven by the EN8811H
+	 * PHY on mdio_0; it is served by the MAC internal PCS path. */
+	phy-handle = <&en8811>;
 	phy-mode = "2500base-x";
-	sfp = <&sfp1>;
 
 	nvmem-cell-names = "mac-address";
 	nvmem-cells = <&macaddr_factory_3e (0)>;
